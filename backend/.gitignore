@@ -1,0 +1,6 @@
+# Ignorar las carpetas de dependencias de ambos proyectos
+frontend/frontweb/node_modules/
+mi-backend/node_modules/
+
+# Ignorar archivos de entorno (si los tuvieras en el futuro)
+.env
