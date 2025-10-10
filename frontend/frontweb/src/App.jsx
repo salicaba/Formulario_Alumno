@@ -3,126 +3,113 @@ import 'bootstrap/dist/css/bootstrap.min.css';
 import './App.css';
 import FormularioAlumno from './components/FormularioAlumno.jsx';
 
-// La URL base de tu backend. ¡Asegúrate de que el puerto sea el correcto!
+// Asegúrate de que esta URL apunte al backend de tu primer proyecto
 const API_URL = 'http://localhost:3000/api/estudiantes';
 
 function App() {
   const [alumnos, setAlumnos] = useState([]);
   const [alumnoAEditar, setAlumnoAEditar] = useState(null);
+  const [errors, setErrors] = useState({});
 
-  // useEffect para cargar los estudiantes desde la BD al iniciar el componente
+  // Carga inicial de datos desde la API
+  const fetchAlumnos = async () => {
+    try {
+      const response = await fetch(API_URL);
+      const data = await response.json();
+      const alumnosMapeados = data.map(a => ({
+        documento_alumno: a.documento,
+        nombre_alumno: a.nombre,
+        apellido_alumno: a.apellido,
+        correo_alumno: a.correo,
+        telefono_alumno: a.telefono,
+      }));
+      setAlumnos(alumnosMapeados);
+    } catch (error) {
+      console.error("Error al cargar los estudiantes:", error);
+    }
+  };
+
   useEffect(() => {
-    const fetchAlumnos = async () => {
-      try {
-        const response = await fetch(API_URL);
-        const data = await response.json();
-        // Mapeamos los datos para que coincidan con la estructura que espera el frontend
-        const alumnosMapeados = data.map(a => ({
-          documento_alumno: a.documento,
-          nombre_alumno: a.nombre,
-          apellido_alumno: a.apellido,
-          correo_alumno: a.correo,
-          telefono_alumno: a.telefono,
-        }));
-        setAlumnos(alumnosMapeados);
-      } catch (error) {
-        console.error("Error al cargar los estudiantes:", error);
-      }
-    };
-
     fetchAlumnos();
-  }, []); // El array vacío asegura que esto se ejecute solo una vez
+  }, []);
+
+  // Función para validar los campos del formulario
+  const validateForm = (formData) => {
+    const newErrors = {};
+    const { documento_alumno, nombre_alumno, apellido_alumno, correo_alumno, telefono_alumno } = formData;
+
+    if (!/^\d+$/.test(documento_alumno)) newErrors.documento_alumno = 'El documento solo debe contener números.';
+    if (!/^[a-zA-Z\s]+$/.test(nombre_alumno)) newErrors.nombre_alumno = 'El nombre solo debe contener letras y espacios.';
+    if (!/^[a-zA-Z\s]+$/.test(apellido_alumno)) newErrors.apellido_alumno = 'El apellido solo debe contener letras y espacios.';
+    if (!/^\d{10}$/.test(telefono_alumno)) newErrors.telefono_alumno = 'El teléfono debe tener 10 dígitos y solo contener números.';
+    if (!/\S+@\S+\.\S+/.test(correo_alumno)) newErrors.correo_alumno = 'El formato del correo electrónico no es válido.';
+    
+    setErrors(newErrors);
+    return Object.keys(newErrors).length === 0;
+  };
 
   const agregarOActualizarAlumno = async (alumnoData) => {
+    if (!validateForm(alumnoData)) {
+      console.log("Validación fallida.");
+      return;
+    }
+
+    const method = alumnoAEditar ? 'PUT' : 'POST';
+    const url = alumnoAEditar ? `${API_URL}/${alumnoAEditar.documento_alumno}` : API_URL;
+
     try {
-      if (alumnoAEditar) {
-        // --- Lógica para ACTUALIZAR ---
-        const response = await fetch(`${API_URL}/${alumnoAEditar.documento_alumno}`, {
-          method: 'PUT',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify(alumnoData),
-        });
-
-        if (response.ok) {
-          // Vuelve a cargar los datos para reflejar los cambios
-          const fetchResponse = await fetch(API_URL);
-          const data = await fetchResponse.json();
-          const alumnosMapeados = data.map(a => ({
-              documento_alumno: a.documento,
-              nombre_alumno: a.nombre,
-              apellido_alumno: a.apellido,
-              correo_alumno: a.correo,
-              telefono_alumno: a.telefono,
-            }));
-          setAlumnos(alumnosMapeados);
-          setAlumnoAEditar(null);
-        }
+      const response = await fetch(url, {
+        method,
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(alumnoData)
+      });
+      if (response.ok) {
+        setAlumnoAEditar(null);
+        setErrors({});
+        await fetchAlumnos(); // Recargar la lista de la base de datos
       } else {
-        // --- Lógica para AGREGAR ---
-        const response = await fetch(API_URL, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify(alumnoData),
-        });
-
-        if (response.ok) {
-          // Vuelve a cargar los datos para reflejar los cambios
-           const fetchResponse = await fetch(API_URL);
-          const data = await fetchResponse.json();
-          const alumnosMapeados = data.map(a => ({
-              documento_alumno: a.documento,
-              nombre_alumno: a.nombre,
-              apellido_alumno: a.apellido,
-              correo_alumno: a.correo,
-              telefono_alumno: a.telefono,
-            }));
-          setAlumnos(alumnosMapeados);
-        }
+        console.error("Error del servidor al guardar el alumno.");
       }
     } catch (error) {
-      console.error("Error al guardar el estudiante:", error);
+      console.error("Error de red:", error);
     }
   };
 
   const handleDelete = async (documento) => {
-    const isConfirmed = window.confirm("¿Estás seguro de que deseas eliminar a este estudiante?");
-    if (isConfirmed) {
-      try {
-        const response = await fetch(`${API_URL}/${documento}`, {
-          method: 'DELETE',
-        });
-        
-        if (response.ok) {
-          setAlumnos(alumnos.filter(a => a.documento_alumno !== documento));
+    if(window.confirm("¿Estás seguro de que deseas eliminar a este estudiante?")){
+        try {
+            const response = await fetch(`${API_URL}/${documento}`, { method: 'DELETE' });
+            if(response.ok) {
+                await fetchAlumnos();
+            }
+        } catch (error) {
+            console.error("Error al eliminar el estudiante:", error);
         }
-      } catch (error) {
-        console.error("Error al eliminar el estudiante:", error);
-      }
     }
   };
 
   const handleEdit = (alumno) => {
     setAlumnoAEditar(alumno);
+    setErrors({});
   };
 
   return (
     <div className="container mt-5">
-      <h1 className="text-center mb-4">Gestión de Estudiantes</h1>
+      <h1 className="text-center mb-4">Control de Estudiantes</h1>
       <div className="row">
-        {/* Columna para el formulario */}
-        <div className="col-md-4 mb-4">
+        <div className="col-lg-4 mb-4">
           <FormularioAlumno
             agregarOActualizarAlumno={agregarOActualizarAlumno}
             alumnoAEditar={alumnoAEditar}
             setAlumnoAEditar={setAlumnoAEditar}
+            errors={errors}
+            setErrors={setErrors}
           />
         </div>
-
-        {/* Columna para la lista de estudiantes */}
-        <div className="col-md-8">
+        <div className="col-lg-8">
           <div className="card p-4 h-100">
             <h3 className="mb-4">Lista de Estudiantes</h3>
-            <div className="table-responsive-md">
+            <div className="table-responsive">
               <table className="table table-striped table-hover">
                 <thead>
                   <tr>
@@ -136,11 +123,7 @@ function App() {
                 </thead>
                 <tbody>
                   {alumnos.length === 0 ? (
-                    <tr>
-                      <td colSpan="6" className="text-center text-muted">
-                        No hay estudiantes registrados.
-                      </td>
-                    </tr>
+                    <tr><td colSpan="6" className="text-center text-muted py-4">No hay estudiantes registrados.</td></tr>
                   ) : (
                     alumnos.map((alumno) => (
                       <tr key={alumno.documento_alumno}>
@@ -150,18 +133,8 @@ function App() {
                         <td>{alumno.correo_alumno}</td>
                         <td>{alumno.telefono_alumno}</td>
                         <td>
-                          <button
-                            className="btn btn-warning btn-sm me-2"
-                            onClick={() => handleEdit(alumno)}
-                          >
-                            Editar
-                          </button>
-                          <button
-                            className="btn btn-danger btn-sm"
-                            onClick={() => handleDelete(alumno.documento_alumno)}
-                          >
-                            Eliminar
-                          </button>
+                          <button onClick={() => handleEdit(alumno)} className="btn btn-warning btn-sm me-2">Editar</button>
+                          <button onClick={() => handleDelete(alumno.documento_alumno)} className="btn btn-danger btn-sm">Eliminar</button>
                         </td>
                       </tr>
                     ))
@@ -177,3 +150,4 @@ function App() {
 }
 
 export default App;
+
