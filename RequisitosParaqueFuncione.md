@@ -6,7 +6,10 @@ Este es un proyecto Full-Stack que consiste en un frontend con React y un backen
 
 Asegúrate de tener instalado lo siguiente en tu sistema:
 - Node.js (versión 16 o superior)
-- MySQL
+- npm install express mysql2 cors
+- npm install -D nodemon
+- npm create vite@latest . -- --template react
+- npm install bootstrap prop-types
 
 ## Instrucciones de Instalación
 
