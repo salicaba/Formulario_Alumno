@@ -7,6 +7,7 @@ const FormularioAlumno = ({ agregarOActualizarAlumno, alumnoAEditar, setAlumnoAE
   const [apellido, setApellido] = useState("");
   const [telefono, setTelefono] = useState("");
   const [correo, setCorreo] = useState("");
+  const [mensajeExito, setMensajeExito] = useState("");
 
   useEffect(() => {
     if (alumnoAEditar) {
@@ -24,6 +25,13 @@ const FormularioAlumno = ({ agregarOActualizarAlumno, alumnoAEditar, setAlumnoAE
     setDocumento(""); setNombre(""); setApellido(""); setTelefono(""); setCorreo("");
   };
 
+  const mostrarMensajeExito = (mensaje) => {
+    setMensajeExito(mensaje);
+    setTimeout(() => {
+      setMensajeExito("");
+    }, 3000); // El mensaje desaparecerá después de 3 segundos
+  };
+
   const handleInputChange = (setter, fieldName) => (e) => {
     setter(e.target.value);
     // Si hay un error en este campo, lo limpiamos al empezar a escribir
@@ -34,16 +42,21 @@ const FormularioAlumno = ({ agregarOActualizarAlumno, alumnoAEditar, setAlumnoAE
 
   const handleSubmit = (e) => {
     e.preventDefault();
-    agregarOActualizarAlumno({
+    const exito = agregarOActualizarAlumno({
       documento_alumno: documento,
       nombre_alumno: nombre,
       apellido_alumno: apellido,
       telefono_alumno: telefono,
       correo_alumno: correo,
     });
-    // Limpiamos el formulario solo si estamos agregando y no hay errores
-    if (!alumnoAEditar && Object.keys(errors).length === 0) {
-        limpiarFormulario();
+
+    if (exito) {
+        if (alumnoAEditar) {
+            mostrarMensajeExito("¡Alumno actualizado con éxito!");
+        } else {
+            mostrarMensajeExito("¡Alumno registrado con éxito!");
+            limpiarFormulario();
+        }
     }
   };
 
@@ -56,6 +69,7 @@ const FormularioAlumno = ({ agregarOActualizarAlumno, alumnoAEditar, setAlumnoAE
   return (
     <div className="card p-4 h-100">
       <h3 className="mb-4">{alumnoAEditar ? 'Editando Alumno' : 'Formulario de Registro'}</h3>
+      {mensajeExito && <div className="alert alert-success">{mensajeExito}</div>}
       <form onSubmit={handleSubmit}>
         <div className="mb-3">
           <label htmlFor="documento" className="form-label">Documento:</label>
@@ -140,4 +154,3 @@ FormularioAlumno.propTypes = {
 };
 
 export default FormularioAlumno;
-
