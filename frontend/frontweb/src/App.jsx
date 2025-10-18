@@ -2,8 +2,8 @@ import { useState, useEffect } from 'react';
 import 'bootstrap/dist/css/bootstrap.min.css';
 import './App.css';
 import FormularioAlumno from './components/FormularioAlumno.jsx';
+import axios from 'axios'; // 1. IMPORTAMOS AXIOS
 
-// Asegúrate de que esta URL apunte al backend de tu primer proyecto
 const API_URL = 'http://localhost:3000/api/estudiantes';
 
 function App() {
@@ -11,12 +11,12 @@ function App() {
   const [alumnoAEditar, setAlumnoAEditar] = useState(null);
   const [errors, setErrors] = useState({});
 
-  // Carga inicial de datos desde la API
+  // 2. FUNCIÓN PARA OBTENER DATOS CON AXIOS
   const fetchAlumnos = async () => {
     try {
-      const response = await fetch(API_URL);
-      const data = await response.json();
-      const alumnosMapeados = data.map(a => ({
+      const response = await axios.get(API_URL);
+      // Mapeamos los nombres de la BD a los del estado del componente
+      const alumnosMapeados = response.data.map(a => ({
         documento_alumno: a.documento,
         nombre_alumno: a.nombre,
         apellido_alumno: a.apellido,
@@ -33,57 +33,55 @@ function App() {
     fetchAlumnos();
   }, []);
 
-  // Función para validar los campos del formulario
   const validateForm = (formData) => {
+    // ... (Tu función de validación se mantiene igual)
     const newErrors = {};
     const { documento_alumno, nombre_alumno, apellido_alumno, correo_alumno, telefono_alumno } = formData;
-
     if (!/^\d+$/.test(documento_alumno)) newErrors.documento_alumno = 'El documento solo debe contener números.';
     if (!/^[a-zA-Z\s]+$/.test(nombre_alumno)) newErrors.nombre_alumno = 'El nombre solo debe contener letras y espacios.';
     if (!/^[a-zA-Z\s]+$/.test(apellido_alumno)) newErrors.apellido_alumno = 'El apellido solo debe contener letras y espacios.';
     if (!/^\d{10}$/.test(telefono_alumno)) newErrors.telefono_alumno = 'El teléfono debe tener 10 dígitos y solo contener números.';
     if (!/\S+@\S+\.\S+/.test(correo_alumno)) newErrors.correo_alumno = 'El formato del correo electrónico no es válido.';
-    
     setErrors(newErrors);
     return Object.keys(newErrors).length === 0;
   };
 
+  // 3. FUNCIÓN PARA AGREGAR/ACTUALIZAR CON AXIOS
   const agregarOActualizarAlumno = async (alumnoData) => {
     if (!validateForm(alumnoData)) {
-      console.log("Validación fallida.");
-      return;
+      return false;
     }
 
-    const method = alumnoAEditar ? 'PUT' : 'POST';
-    const url = alumnoAEditar ? `${API_URL}/${alumnoAEditar.documento_alumno}` : API_URL;
-
     try {
-      const response = await fetch(url, {
-        method,
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(alumnoData)
-      });
-      if (response.ok) {
-        setAlumnoAEditar(null);
-        setErrors({});
-        await fetchAlumnos(); // Recargar la lista de la base de datos
+      if (alumnoAEditar) {
+        // Actualizar (PUT)
+        await axios.put(`${API_URL}/${alumnoAEditar.documento_alumno}`, alumnoData);
       } else {
-        console.error("Error del servidor al guardar el alumno.");
+        // Agregar (POST)
+        await axios.post(API_URL, alumnoData);
       }
+
+      setAlumnoAEditar(null);
+      setErrors({});
+      await fetchAlumnos(); // Recargar la lista
+      return true; // Éxito
+
     } catch (error) {
-      console.error("Error de red:", error);
+      console.error("Error del servidor al guardar el alumno:", error);
+      alert('Error al guardar el alumno. Verifique que el documento no esté duplicado.');
+      return false; // Error
     }
   };
 
+  // 4. FUNCIÓN PARA ELIMINAR CON AXIOS
   const handleDelete = async (documento) => {
     if(window.confirm("¿Estás seguro de que deseas eliminar a este estudiante?")){
         try {
-            const response = await fetch(`${API_URL}/${documento}`, { method: 'DELETE' });
-            if(response.ok) {
-                await fetchAlumnos();
-            }
+            await axios.delete(`${API_URL}/${documento}`);
+            await fetchAlumnos(); // Recargar la lista
         } catch (error) {
             console.error("Error al eliminar el estudiante:", error);
+            alert('Error al eliminar el estudiante.');
         }
     }
   };
@@ -93,6 +91,7 @@ function App() {
     setErrors({});
   };
 
+  // EL CÓDIGO JSX (return (...)) SE MANTIENE EXACTAMENTE IGUAL
   return (
     <div className="container mt-5">
       <h1 className="text-center mb-4">Control de Estudiantes</h1>
@@ -150,4 +149,3 @@ function App() {
 }
 
 export default App;
-
